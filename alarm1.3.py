@@ -12,7 +12,20 @@ import random
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
+log_file = '/home/publius/fireAlarm/log.txt'
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+def log_event(message):
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
 load_dotenv()
+
 logging.info('Program Started')
 last_status_date = datetime.now().date()
 
@@ -40,18 +53,6 @@ ir_alarm_triggered = False
 alternate_started = False
 today = datetime.now().date()
 
-log_file = '/home/publius/fireAlarm/log.txt'
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-def log_event(message):
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
-
 def setup_gpio():
   global gpio_initialized
   GPIO.setmode(GPIO.BCM)
@@ -66,10 +67,10 @@ all_off()
 GPIO.output(LED_green, GPIO.HIGH)
 
 def handle_exit(signum, frame):
-	logging.info(f"Recieved signal {signum}, shutting down")
-	all_off()
-	GPIO.cleanup()
-	sys.exit(0)
+    log_event(f"Shutting down: signal recieved {signum}")
+    all_off()
+    GPIO.cleanup()
+    sys.exit(0)
 
 signal.signal(signal.SIGTERM, handle_exit)
 signal.signal(signal.SIGINT, handle_exit)
@@ -93,10 +94,10 @@ def listen_for_commands():
         if select.select([sys.stdin], [], [], 0.1)[0]:
             cmd = sys.stdin.readline().strip().lower()
             if cmd == 'stop':
-                logging.info('Stop command recieved!!!!')
+                log_event("Stop command recieved")
                 stop_flag = True
             elif cmd == 'reset':
-                logging.info('Reset command given and now restarting')
+                log_event("Reset command recieved")
                 time.sleep(0.5)
                 GPIO.cleanup()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
@@ -106,7 +107,7 @@ def check_button_press():
     global button_triggered, alternate_started
     while not stop_flag and not button_triggered:
         if GPIO.input(panic_button) == GPIO.LOW:
-            logging.info('Panic button has been pressed')
+            log_event("Panic button pressed")
             print('Panic Button pressed')
             button_triggered = True
             GPIO.output(LED_green, GPIO.LOW)
@@ -117,6 +118,7 @@ def check_ir_sensor():
     while not stop_flag:
         if GPIO.input(ir_sensor) == GPIO.HIGH and not ir_alarm_triggered:
             logging.info('IR Sensor tripped')
+            log_event("IR Sensor tripped")
             print('FIRE HAS BEEN DETECTED')
             ir_alarm_triggered = True
         time.sleep(0.1)
@@ -134,9 +136,9 @@ def send_SMS(body):
         with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as server:
             server.login(email_address, email_password)
             server.send_message(msg)
-        logging.info('Text message sent')
+        log_event('Text message sent')
     except:
-        logging.info('Failed to send message')
+        log_event("Failed to send message")
 
 threading.Thread(target=listen_for_commands, daemon=True).start()
 threading.Thread(target=check_button_press, daemon=True).start()
@@ -151,7 +153,7 @@ try:
         if now.hour == 6 and last_status_date != today:
        # if last_status_date != today: #test only
             send_SMS('Alarm system is ok, Daily reset sucseeful.')
-            logging.info('Daily status check sent')
+            log_event("Daily status check sent")
             last_status_date = today
 
         if  button_triggered and not alternate_started:
@@ -174,10 +176,12 @@ try:
         
 except KeyboardInterrupt:
     print('Program is interupted')
+    log_event("Program is interupted")
     
 finally:
-	logging.info('Program has stopped')
+    log_event("Program has stopped")
 	all_off()
 	GPIO.cleanup()
 	print('Program has completed')
+    log_event("Program has completed")
 
