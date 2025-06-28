@@ -12,6 +12,10 @@ import random
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
+def log_event(message):
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
+load_dotenv()
+
 log_file = '/home/publius/fireAlarm/log.txt'
 os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -21,13 +25,6 @@ logging.basicConfig(
     format='%(asctime)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-
-def log_event(message):
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
-load_dotenv()
-
-logging.info('Program Started')
-last_status_date = datetime.now().date()
 
 LED_red_1 = 23
 LED_red_2 = 25
@@ -44,6 +41,11 @@ try:
     GPIO.setup(panic_button, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 except Exception as e:
     log_event(f"GPIO setup error: {e}")
+
+
+
+logging.info('Program Started')
+last_status_date = datetime.now().date()
 
 gpio_initialized = False
 last_status_date = None
@@ -180,8 +182,8 @@ except KeyboardInterrupt:
     
 finally:
     log_event("Program has stopped")
-	all_off()
-	GPIO.cleanup()
-	print('Program has completed')
+    all_off()
+    GPIO.cleanup()
+    print('Program has completed')
     log_event("Program has completed")
 
